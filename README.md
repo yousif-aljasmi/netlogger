@@ -79,9 +79,9 @@ NETLOGGER_SERVER_CACHE=/tmp/uae_servers_cache.json
 NETLOGGER_THREADS=4
 
 # --- Supabase Configuration ---
-SUPABASE_URL=https://czgxoihuyapxoemgrron.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_TABLE=netlogs
+SUPABASE_URL=https://your project.supabase.co
+SUPABASE_ANON_KEY="your key"
+SUPABASE_TABLE="yourtable"
 ```
 
 ---

@@ -3,7 +3,7 @@
 **NetLogger** is a lightweight network quality monitoring tool that:
 - Runs scheduled speed tests to **Etisalat (e& UAE)** and **du (EITC)** servers.  
 - Logs results locally (CSV + TXT).  
-- Optionally pushes results to **Supabase** cloud database.  
+- Optionally pushes results to **Supabase** (PostgreSQL) database.  
 - Runs automatically as a **systemd service**.  
 - Fully configurable through a `.env` file — no code editing required.
 
@@ -32,10 +32,70 @@
 
 ## 🚀 Installation (One Command)
 
-Clone the repository and run the installer:
+### ⚠️ Before Running the Installer
+
+Before running the installer **for the first time**, open the file `install_netlogger.sh` and update the **Supabase configuration** section with your own credentials:
 
 ```bash
-git clone https://github.com/yousif-aljasmi/netlogger.git
+# -------- SUPABASE CONFIG --------
+SUPABASE_URL="https://your-project-id.supabase.co"
+SUPABASE_ANON_KEY="your-anon-or-service-key"
+SUPABASE_TABLE="netlogs"
+```
+
+These values tell NetLogger where to push network test results.  
+If you plan to use Supabase or your own PostgreSQL database, follow the next section.
+
+---
+
+## 🗄️ Preparing Your Supabase (or PostgreSQL) Database
+
+If you want to use your **own database** instead of the example provided, create a table to receive logs.  
+In **Supabase SQL Editor** or **psql shell**, run:
+
+```sql
+CREATE TABLE IF NOT EXISTS netlogs (
+    id BIGSERIAL PRIMARY KEY,
+    ts_iso TIMESTAMPTZ,
+    device TEXT,
+    hostname TEXT,
+    local_ip TEXT,
+    public_ip TEXT,
+    city TEXT,
+    region TEXT,
+    country TEXT,
+    lat TEXT,
+    lon TEXT,
+    isp TEXT,
+    test_id UUID,
+    target_isp TEXT,
+    speedtest_server TEXT,
+    speedtest_sponsor TEXT,
+    speedtest_country TEXT,
+    server_id INT,
+    latency_ms FLOAT,
+    download_mbps FLOAT,
+    upload_mbps FLOAT,
+    duration_s FLOAT,
+    threads_used INT,
+    rtt_ms FLOAT,
+    jitter_ms FLOAT,
+    http_load_s FLOAT
+);
+```
+
+Then go to **Supabase → Project Settings → API** to copy:
+- **Project URL**  
+- **Anon Key (or Service Key)**  
+
+Update those values in the installer script and re-run the installation.
+
+---
+
+### 💻 Run the Installer
+
+```bash
+git clone https://github.com/yourname/netlogger.git
 cd netlogger
 sudo chmod +x install_netlogger.sh
 sudo ./install_netlogger.sh
@@ -79,9 +139,18 @@ NETLOGGER_SERVER_CACHE=/tmp/uae_servers_cache.json
 NETLOGGER_THREADS=4
 
 # --- Supabase Configuration ---
-SUPABASE_URL=https://your project.supabase.co
-SUPABASE_ANON_KEY="your key"
-SUPABASE_TABLE="yourtable"
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_TABLE=netlogs
+```
+
+### 🧠 Notes
+
+- File permissions are automatically restricted to `600` for security.  
+- You can safely edit this file and restart the service to apply changes:
+
+```bash
+sudo systemctl restart netlogger
 ```
 
 ---

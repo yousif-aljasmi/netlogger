@@ -252,9 +252,6 @@ ts_iso,device,hostname,local_ip,public_ip,city,region,country,lat,lon,isp,test_i
 ## 🧩 Credits
 
 Developed by **Yousif Ali Al Jasmi**  
-Manager – Telecom Data Analysis / Big Data & AI / Technology Development Affairs  
-**TDRA – UAE**
-
 ---
 
 ## 📄 License

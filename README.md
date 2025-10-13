@@ -1,98 +1,51 @@
 # 🛰️ NetLogger — Raspberry Pi Network Quality Logger
 
-NetLogger is a lightweight, self-contained Python application that runs periodic network speed tests against **e& UAE (Etisalat)** and **du** servers, records results locally, and optionally pushes them to **Supabase** for remote analytics.
-
-It is designed for **Raspberry Pi** devices deployed across locations to measure **QoS** metrics such as:
-- Download / Upload throughput  
-- Latency / Jitter (ping)  
-- HTTP page-load time  
-- Geo + ISP identification  
+NetLogger is a **lightweight autonomous network measurement agent** designed for **Raspberry Pi** devices.  
+It performs **scheduled speed tests**, **ping/jitter measurements**, and **HTTP load checks**, logs the data locally (CSV + TXT), and optionally pushes them to a **Supabase** backend for centralized analytics.
 
 ---
 
-## 🚀 Features
+## 🚀 Key Features
 
-- Multi-threaded **Speedtest CLI** runner (configurable threads per Pi model)
-- **Auto-discovery and caching** of UAE-based Etisalat / du servers
-- Periodic **ping**, **HTTP load**, and **geo-lookup** via ipinfo.io
-- Local structured logs (CSV + TXT)
-- Optional **Supabase REST push**
-- Safe retry logic and clean **systemd service** integration
-
----
-
-## 🧩 Directory Layout
-
-| Path | Description |
-|------|--------------|
-| `/home/admin/netlogger/netlogger.py` | Main Python script |
-| `/home/admin/netlogger/logs/` | Daily CSV / TXT logs |
-| `/etc/systemd/system/netlogger.service` | Optional systemd unit |
-| `/etc/netlogger.env` | Environment file (Supabase keys etc.) |
-| `/home/admin/venvs/netlogger/` | Python virtual environment |
+- 📡 Dual-ISP testing: **Etisalat (e& UAE)** and **du**
+- ⚙️ Auto-discovery and caching of UAE-based speedtest servers  
+- 🔁 Scheduled tests every `INTERVAL_SECONDS`
+- 🌍 Geo + public IP detection via `ipinfo.io`
+- 💾 Local CSV/TXT logging
+- ☁️ Optional push to Supabase REST API
+- 🧵 Multi-threaded throughput testing (`THREADS` auto-optimized)
+- 🧠 Graceful restart and systemd service integration
+- 🔄 Auto-update from **GitHub** or **Supabase storage**
 
 ---
 
-## ⚙️ Installation via `install_netlogger.sh`
+## 📦 Automated Installer
 
-Create an installer script called `install_netlogger.sh`:
+This repository includes a one-shot **bash installer**:  
+`install_netlogger.sh`  
+which handles everything — dependencies, venv, environment variables, code fetch, and service setup.
+
+### ✅ What It Does
+
+| Step | Action |
+|------|--------|
+| 1️⃣ | Installs `python3`, `pip`, `venv`, `git`, `curl` |
+| 2️⃣ | Creates a virtual environment (`/home/admin/venvs/netlogger`) |
+| 3️⃣ | Installs Python dependencies: `requests`, `speedtest-cli`, `numpy` |
+| 4️⃣ | Configures system timezone (`Asia/Dubai`) |
+| 5️⃣ | Writes `/etc/netlogger.env` with Supabase credentials |
+| 6️⃣ | Fetches latest code (from **GitHub** or **Supabase**) |
+| 7️⃣ | Creates and enables a **systemd** service |
+| 8️⃣ | Starts the service automatically |
+
+---
+
+## 🧰 Installation Steps
 
 ```bash
-#!/usr/bin/env bash
-set -e
+# Clone or download the installer
+curl -L -o install_netlogger.sh https://raw.githubusercontent.com/yourname/netlogger/main/install_netlogger.sh
+chmod +x install_netlogger.sh
 
-DEVICE_USER="admin"
-APP_DIR="/home/${DEVICE_USER}/netlogger"
-
-# -------- 1. SYSTEM PREPARATION --------
-sudo apt update
-sudo apt install -y python3-full python3-venv python3-pip git
-
-# -------- 2. CREATE VENV --------
-sudo -u ${DEVICE_USER} mkdir -p /home/${DEVICE_USER}/venvs
-sudo -u ${DEVICE_USER} python3 -m venv /home/${DEVICE_USER}/venvs/netlogger
-sudo -u ${DEVICE_USER} /home/${DEVICE_USER}/venvs/netlogger/bin/pip install --upgrade pip speedtest-cli requests
-
-# -------- 3. FETCH LATEST CODE --------
-REPO_URL="https://github.com/yourname/netlogger"
-BRANCH="main"
-
-echo "🌍 Fetching latest netlogger.py from GitHub..."
-sudo -u ${DEVICE_USER} mkdir -p "${APP_DIR}"
-
-if [ ! -d "${APP_DIR}/.git" ]; then
-  sudo -u ${DEVICE_USER} git clone --depth 1 -b ${BRANCH} "${REPO_URL}" "${APP_DIR}"
-else
-  echo "🔄 Updating existing repository..."
-  cd "${APP_DIR}"
-  sudo -u ${DEVICE_USER} git pull origin ${BRANCH}
-fi
-
-# -------- 4. CREATE SYSTEMD SERVICE --------
-cat <<'EOF' | sudo tee /etc/systemd/system/netlogger.service
-[Unit]
-Description=Network Logger (CSV + TXT + optional Supabase push)
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=simple
-User=admin
-Group=admin
-WorkingDirectory=/home/admin/netlogger
-ExecStart=/home/admin/venvs/netlogger/bin/python -u /home/admin/netlogger/netlogger.py
-EnvironmentFile=-/etc/netlogger.env
-Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable netlogger
-sudo systemctl start netlogger
-
-echo "✅ NetLogger installed and running!"
+# Run the installer
+sudo ./install_netlogger.sh

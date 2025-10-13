@@ -1,35 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Network logger for Raspberry Pi
---------------------------------
+Network logger for Raspberry Pi / VM
+------------------------------------
 Runs scheduled speed tests against e& UAE (Etisalat) and du servers,
 logs metrics locally (CSV + TXT) and optionally pushes to Supabase.
-Supports multi-threaded tests for more accurate throughput.
+All configuration is read from environment variables.
 """
 
 import os, sys, time, csv, json, socket, statistics, signal, uuid, random, traceback, requests
 from datetime import datetime, timezone
 
-# ========= USER SETTINGS =========
-DEVICE_ID         = "NET-PI-01"
-INTERVAL_SECONDS  = 600             # base interval between cycles (seconds)
-PING_HOST         = "8.8.8.8"
-PING_COUNT        = 5
-LOG_DIR           = "/home/admin/netlogger/logs"
-SERVER_CACHE_FILE = "/tmp/uae_servers_cache.json"
+# ========= CONFIGURATION (read from environment) =========
 
-# Speedtest threading — higher = more accurate, but more CPU usage
-# Recommended: 2 (Pi 3), 4 (Pi 4), 6–8 (Pi 5)
-THREADS           = min(4, os.cpu_count() or 4)
+DEVICE_ID         = os.getenv("NETLOGGER_DEVICE_ID", "NET-PI-01")
+INTERVAL_SECONDS  = int(os.getenv("NETLOGGER_INTERVAL_SECONDS", "600"))
+PING_HOST         = os.getenv("NETLOGGER_PING_HOST", "8.8.8.8")
+PING_COUNT        = int(os.getenv("NETLOGGER_PING_COUNT", "5"))
+LOG_DIR           = os.getenv("NETLOGGER_LOG_DIR", "/home/admin/netlogger/logs")
+SERVER_CACHE_FILE = os.getenv("NETLOGGER_SERVER_CACHE", "/tmp/uae_servers_cache.json")
+
+# Thread count for Speedtest
+THREADS = int(os.getenv("NETLOGGER_THREADS", str(min(4, os.cpu_count() or 4))))
 
 # Supabase configuration
 SUPABASE_URL      = os.getenv("SUPABASE_URL", "")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
-SUPABASE_TABLE    = os.getenv("SUPABASE_TABLE", "")
+SUPABASE_TABLE    = os.getenv("SUPABASE_TABLE", "netlogs")
 
 os.makedirs(LOG_DIR, exist_ok=True)
-
 
 # ========= SAFE SPEEDTEST CONSTRUCTOR =========
 def safe_speedtest(timeout=120):
@@ -48,7 +47,6 @@ def safe_speedtest(timeout=120):
             print(f"⚠️ Speedtest init error: {e}")
             time.sleep(10)
     raise RuntimeError("Speedtest configuration failed after 3 retries.")
-
 
 # ========= GEO/IP =========
 _GEO_CACHE = {"ts": 0.0, "data": None}
@@ -70,7 +68,6 @@ def get_ipinfo():
         return {"public_ip": None, "city": None, "region": None,
                 "country": None, "lat": None, "lon": None, "isp": None}
 
-
 # ========= HELPERS =========
 def get_local_ip():
     try:
@@ -81,7 +78,6 @@ def get_local_ip():
         return ip
     except Exception:
         return None
-
 
 def run_ping(host=PING_HOST, count=PING_COUNT):
     import subprocess
@@ -96,7 +92,6 @@ def run_ping(host=PING_HOST, count=PING_COUNT):
     except Exception:
         return None, None
 
-
 def measure_http_load(url="https://www.bbc.com/"):
     try:
         t0 = time.perf_counter()
@@ -105,7 +100,6 @@ def measure_http_load(url="https://www.bbc.com/"):
         return round(time.perf_counter() - t0, 2)
     except Exception:
         return None
-
 
 # ========= SERVER CACHE =========
 def load_cached_servers():
@@ -137,13 +131,11 @@ def load_cached_servers():
     except Exception:
         return None
 
-
 def save_cached_servers(data):
     try:
         open(SERVER_CACHE_FILE, "w").write(json.dumps(data))
     except Exception:
         pass
-
 
 # ========= DISCOVER SERVERS =========
 def discover_servers():
@@ -181,7 +173,6 @@ def discover_servers():
     except Exception as e:
         print(f"[discover] failed: {e}")
         return {"etisalat": [], "du": []}
-
 
 # ========= SPEEDTEST RUNNER =========
 def run_speedtest_dynamic(target, retries=2):
@@ -224,20 +215,17 @@ def run_speedtest_dynamic(target, retries=2):
                 print(f"✅ {target.upper()} ↓{res['download_mbps']} ↑{res['upload_mbps']} Mbps "
                       f"(lat {res['latency_ms']} ms, dur {res['duration_s']} s, thr {THREADS})\n")
                 return res
-
             except Exception as e:
                 print(f"⚠️ {target} error: {e}")
                 time.sleep(5)
     print(f"❌ {target.upper()} failed after attempts")
     return None
 
-
 # ========= LOGGING =========
 def day_paths():
     d = datetime.now().strftime("%Y-%m-%d")
     return (os.path.join(LOG_DIR, f"logs_{d}.csv"),
             os.path.join(LOG_DIR, f"logs_{d}.txt"))
-
 
 def ensure_headers(csvp):
     if not os.path.exists(csvp) or os.path.getsize(csvp) == 0:
@@ -251,7 +239,6 @@ def ensure_headers(csvp):
                 "rtt_ms", "jitter_ms", "http_load_s"
             ])
 
-
 def append_csv(csvp, row):
     ensure_headers(csvp)
     with open(csvp, "a", newline="") as f:
@@ -264,14 +251,12 @@ def append_csv(csvp, row):
             "rtt_ms", "jitter_ms", "http_load_s"
         ]])
 
-
 def append_txt(txtp, msg):
     open(txtp, "a").write(msg + "\n")
 
-
 # ========= SUPABASE PUSH =========
 def supabase_push(row):
-    if not (SUPABASE_URL and SUPABASE_ANON_KEY):
+    if not (SUPABASE_URL and SUPABASE_ANON_KEY and SUPABASE_TABLE):
         print("❌ [Supabase] Missing credentials")
         return
     url = f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}"
@@ -288,7 +273,6 @@ def supabase_push(row):
             print(f"[Supabase] Error: {r.text}")
     except Exception as e:
         print(f"❌ Supabase push error: {e}")
-
 
 # ========= MAIN LOOP =========
 _stop = False

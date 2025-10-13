@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 # ========= CONFIGURATION (read from environment) =========
 
-DEVICE_ID         = os.getenv("NETLOGGER_DEVICE_ID", "NET-PI-01")
+DEVICE_ID         = os.getenv("NETLOGGER_DEVICE_ID", "NET-PI-xx")
 INTERVAL_SECONDS  = int(os.getenv("NETLOGGER_INTERVAL_SECONDS", "600"))
 PING_HOST         = os.getenv("NETLOGGER_PING_HOST", "8.8.8.8")
 PING_COUNT        = int(os.getenv("NETLOGGER_PING_COUNT", "5"))
@@ -329,3 +329,4 @@ def main_loop():
 
 if __name__ == "__main__":
     main_loop()
+

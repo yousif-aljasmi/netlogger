@@ -44,7 +44,7 @@ which handles everything — dependencies, venv, environment variables, code fet
 
 ```bash
 # Clone or download the installer
-curl -L -o install_netlogger.sh https://raw.githubusercontent.com/yourname/netlogger/main/install_netlogger.sh
+curl -L -o install_netlogger.sh https://raw.githubusercontent.com/yousif-aljasmi/netlogger/main/install_netlogger.sh
 chmod +x install_netlogger.sh
 
 # Run the installer

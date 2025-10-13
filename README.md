@@ -35,7 +35,7 @@
 Clone the repository and run the installer:
 
 ```bash
-git clone https://github.com/yourname/netlogger.git
+git clone https://github.com/yousif-aljasmi/netlogger.git
 cd netlogger
 sudo chmod +x install_netlogger.sh
 sudo ./install_netlogger.sh

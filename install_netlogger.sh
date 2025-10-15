@@ -14,7 +14,7 @@ PYTHON_BIN="/usr/bin/python3"
 TIMEZONE="Asia/Dubai"
 
 # -------- NETLOGGER VARIABLES --------
-NETLOGGER_DEVICE_ID="NET-PI-xx"
+NETLOGGER_DEVICE_ID="NET-PI-02"
 NETLOGGER_INTERVAL_SECONDS="600"
 NETLOGGER_PING_HOST="8.8.8.8"
 NETLOGGER_PING_COUNT="5"
@@ -28,7 +28,7 @@ SUPABASE_ANON_KEY=""
 SUPABASE_TABLE="netlogs"
 
 # -------- UPDATE SOURCE (GitHub / Supabase) --------
-UPDATE_SOURCE="github"   # set to "supabase" to use Supabase Storage
+UPDATE_SOURCE="github"   # options: "github" or "supabase"
 GITHUB_REPO_URL="https://github.com/yousif-aljasmi/netlogger"
 GITHUB_BRANCH="main"
 SUPABASE_CODE_URL="https://czgxoihuyapxoemgrron.supabase.co/storage/v1/object/public/netlogger/netlogger.py"
@@ -93,16 +93,20 @@ sudo -u ${DEVICE_USER} mkdir -p "${APP_DIR}/logs"
 echo "🌍 Fetching latest netlogger.py code (${UPDATE_SOURCE})..."
 
 if [[ "${UPDATE_SOURCE}" == "github" ]]; then
-    if [ ! -d "${APP_DIR}/.git" ]; then
+    if [ -d "${APP_DIR}/.git" ]; then
+        echo "🔄 Existing Git repo found, updating..."
+        cd "${APP_DIR}"
+        sudo -u ${DEVICE_USER} git fetch origin ${GITHUB_BRANCH} --depth=1
+        sudo -u ${DEVICE_USER} git reset --hard origin/${GITHUB_BRANCH}
+    else
+        echo "📥 Preparing clean directory for clone..."
+        sudo -u ${DEVICE_USER} rm -rf "${APP_DIR:?}/"*
         echo "📥 Cloning from GitHub: ${GITHUB_REPO_URL} (${GITHUB_BRANCH})"
         sudo -u ${DEVICE_USER} git clone --depth 1 -b ${GITHUB_BRANCH} "${GITHUB_REPO_URL}" "${APP_DIR}"
-    else
-        echo "🔄 Updating existing GitHub repo..."
-        cd "${APP_DIR}"
-        sudo -u ${DEVICE_USER} git pull origin ${GITHUB_BRANCH}
     fi
 elif [[ "${UPDATE_SOURCE}" == "supabase" ]]; then
     echo "📥 Downloading from Supabase Storage..."
+    sudo -u ${DEVICE_USER} mkdir -p "${APP_DIR}"
     sudo -u ${DEVICE_USER} curl -L -o "${APP_DIR}/netlogger.py" "${SUPABASE_CODE_URL}"
 else
     echo "❌ Invalid UPDATE_SOURCE value. Use 'github' or 'supabase'."

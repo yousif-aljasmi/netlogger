@@ -180,15 +180,21 @@ def run_speedtest_dynamic(target, retries=2):
     servers = discover_servers()
     cand = servers.get(target, [])
     if not cand:
-        print(f"⚠️ No {target} servers found")
-        return None
+        print(f"⚠️ No {target} servers found — triggering rediscovery")
+        # Force rediscovery if cache is empty
+        save_cached_servers({"etisalat": [], "du": []})
+        time.sleep(3)
+        servers = discover_servers()
+        cand = servers.get(target, [])
+
     random.shuffle(cand)
+    failure_count = 0
 
     for ch in cand[:3]:
         for a in range(1, retries + 1):
             print(f"🚀 {target.upper()} → {ch['name']} ({ch['sponsor']}) [id={ch['id']}] try {a}")
             try:
-                st = safe_speedtest(timeout=120)
+                st = safe_speedtest(timeout=180)  # ⏱️ slightly longer timeout
                 st.get_servers([str(ch["id"])])
                 best = st.get_best_server()
 
@@ -215,10 +221,20 @@ def run_speedtest_dynamic(target, retries=2):
                 print(f"✅ {target.upper()} ↓{res['download_mbps']} ↑{res['upload_mbps']} Mbps "
                       f"(lat {res['latency_ms']} ms, dur {res['duration_s']} s, thr {THREADS})\n")
                 return res
+
             except Exception as e:
+                failure_count += 1
                 print(f"⚠️ {target} error: {e}")
                 time.sleep(5)
-    print(f"❌ {target.upper()} failed after attempts")
+
+        # try next server
+    print(f"❌ {target.upper()} failed after attempts ({failure_count} errors total)")
+
+    # 🔁 Auto-healing trigger: clear cache and rediscover once
+    if failure_count >= retries * 2:
+        print(f"♻️ Re-discovering servers for {target.upper()} after repeated failures…")
+        save_cached_servers({"etisalat": [], "du": []})
+        discover_servers()
     return None
 
 # ========= LOGGING =========
@@ -285,6 +301,8 @@ signal.signal(signal.SIGTERM, _graceful_exit)
 def main_loop():
     host = socket.gethostname()
     cycle = 0
+    # Reset discovery cache every reboot for freshness
+    save_cached_servers({"etisalat": [], "du": []})
     while not _stop:
         cycle += 1
         try:
@@ -329,4 +347,5 @@ def main_loop():
 
 if __name__ == "__main__":
     main_loop()
+
 

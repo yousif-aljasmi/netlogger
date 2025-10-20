@@ -20,6 +20,26 @@ PING_COUNT        = int(os.getenv("NETLOGGER_PING_COUNT", "5"))
 LOG_DIR           = os.getenv("NETLOGGER_LOG_DIR", "/home/admin/netlogger/logs")
 SERVER_CACHE_FILE = os.getenv("NETLOGGER_SERVER_CACHE", "/tmp/uae_servers_cache.json")
 
+LAST_GOOD_FILE = "/tmp/last_good_server.json"
+
+def load_last_good():
+    try:
+        if os.path.exists(LAST_GOOD_FILE):
+            with open(LAST_GOOD_FILE) as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+def save_last_good(isp, server_info):
+    try:
+        data = load_last_good()
+        data[isp] = server_info
+        with open(LAST_GOOD_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
 # Thread count for Speedtest
 THREADS = int(os.getenv("NETLOGGER_THREADS", str(min(4, os.cpu_count() or 4))))
 
@@ -181,14 +201,21 @@ def run_speedtest_dynamic(target, retries=2):
     cand = servers.get(target, [])
     if not cand:
         print(f"⚠️ No {target} servers found — triggering rediscovery")
-        # Force rediscovery if cache is empty
         save_cached_servers({"etisalat": [], "du": []})
         time.sleep(3)
         servers = discover_servers()
         cand = servers.get(target, [])
-
+    
+    # Try last known good server first if available
+    last_good = load_last_good().get(target)
+    if last_good:
+        print(f"💾 Using last known good {target.upper()} server first: "
+              f"{last_good['name']} ({last_good['sponsor']}) [id={last_good['id']}]")
+        cand = [last_good] + [c for c in cand if c["id"] != last_good["id"]]
+    
     random.shuffle(cand)
     failure_count = 0
+
 
     for ch in cand[:3]:
         for a in range(1, retries + 1):
@@ -220,6 +247,7 @@ def run_speedtest_dynamic(target, retries=2):
 
                 print(f"✅ {target.upper()} ↓{res['download_mbps']} ↑{res['upload_mbps']} Mbps "
                       f"(lat {res['latency_ms']} ms, dur {res['duration_s']} s, thr {THREADS})\n")
+                save_last_good(target, ch)
                 return res
 
             except Exception as e:
@@ -347,5 +375,6 @@ def main_loop():
 
 if __name__ == "__main__":
     main_loop()
+
 
 
